@@ -32,6 +32,25 @@ class SpiData(object):
     def remove_column(self, column_names):
         self.df = self.df.drop(columns=column_names)
 
+    # --一部の列をone-hot表現に変更
+    def add_one_hot(self):
+        # --入行年をone-hot表現にする
+        for year in range(2007, 2020):
+            self.df[str(year)] = 0
+            for i in range(len(self.df)):
+                if self.df['入行年'][i] == year:
+                    self.df[str(year)][i] = 1
+        self.remove_column('入行年')
+        # --性別をone-hot表現にする
+        self.df['男'] = 0
+        self.df['女'] = 0
+        for i in range(len(self.df)):
+            if self.df['性別'][i] == 1:
+                self.df['男'][i] = 1
+            else:
+                self.df['女'][i] = 1
+        self.remove_column('性別')
+
 
 # --データを分析するクラス
 # --主成分分析とか、分類器の学習とか
