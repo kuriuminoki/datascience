@@ -1,7 +1,10 @@
 from load_save import load_dataset
 from pca import pca_analysis, pca_plot
+from tree import lightgbm
 
 import copy
+from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
 
 
 # --spiデータを取り扱うクラス
@@ -58,6 +61,11 @@ class DataAnalysis(object):
     def __init__(self, df):
         self.df = copy.deepcopy(df)
 
+    # --主成分分析
     def pca(self, x, y):
         dfs, feature = pca_analysis(self.df)
         pca_plot(self.df, feature, x, y, "退職")
+
+    # --LightGBM
+    def lightgbm(self, ans_column):
+        lightgbm(self.df, ans_column)

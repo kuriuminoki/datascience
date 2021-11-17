@@ -46,12 +46,23 @@ def data_analysis(spi_data):
     data.remove_all_nan()
     # --主成分分析を実行
     analysis_data = spi.DataAnalysis(data.df)
-    analysis_data.pca(1, 2)
+    #analysis_data.pca(1, 2)
+    #analysis_data.pca(1, 8)
+    #analysis_data.pca(1, 9)
+    #analysis_data.pca(1, 10)
+    #analysis_data.pca(1, 11)
 
     # #######機械学習########## #
     data = copy.deepcopy(spi_data)
-    data.add_one_hot()
-    print(data.df)
+    # --退職していない人は０
+    data.replace_nan(["退職"], 0)
+    # --年と性別をone-hot表現にする
+    # data.add_one_hot()
+    # --NaNを含む列は全て除去
+    data.remove_all_nan()
+    # --LightGBM
+    analysis_data = spi.DataAnalysis(data.df)
+    analysis_data.lightgbm("退職")
 
 
 # --メイン関数
