@@ -4,6 +4,8 @@ import analysis as spi
 
 
 # --一部の特徴をまとめたもの
+category0 = ['通番', '退職', '入行年', '性別']
+
 category1 = ['社会的内向性', '社会的内向性', '身体活動性', '持続性', '慎重性',
              '達成意欲', '活動意欲', '敏感性', '自責性', '気分性',
              '独自性', '自信性', '高揚性']
@@ -31,16 +33,15 @@ def data_analysis(spi_data):
     # --データ分析クラス作成
 
     # ########主成分分析############ #
-    # --考慮する列
-    consider_columns = ["Ｗ創造重視"]
-    # --考慮しない列
-    remove_columns = ["性別", "入行年", "前回", "前々回", "前々々回"]
     # --データ取得
     data = copy.deepcopy(spi_data)
     # --退職していない人は０
     data.replace_nan(["退職"], 0)
-    # --考慮する列、しない列
+    # --考慮する列
+    consider_columns = ["Ｗ創造重視"]
     data.remove_nan(consider_columns)
+    # --考慮しない列
+    remove_columns = ["性別", "入行年", "前回", "前々回", "前々々回"]
     # data.remove_column(remove_columns)
     # --NaNを含む列は全て除去
     data.remove_all_nan()
@@ -53,9 +54,16 @@ def data_analysis(spi_data):
     #analysis_data.pca(1, 11)
 
     # #######機械学習########## #
+    # --データ取得
     data = copy.deepcopy(spi_data)
     # --退職していない人は０
     data.replace_nan(["退職"], 0)
+    # --考慮する列
+    # consider_columns = ["Ｗ創造重視"]
+    # data.remove_nan(consider_columns)
+    # --考慮しない列
+    remove_columns = ["通番"]
+    data.remove_column(remove_columns)
     # --年と性別をone-hot表現にする
     # data.add_one_hot()
     # --NaNを含む列は全て除去
