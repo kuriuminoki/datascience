@@ -2,6 +2,8 @@ import copy
 
 import analysis as spi
 
+import os
+
 
 # --一部の特徴をまとめたもの
 category0 = ['通番', '退職', '入行年', '性別']
@@ -27,50 +29,146 @@ category7 = ['親和-独立', '気長-機敏', '柔軟-持続', '現実-挑戦',
 
 category8 = ['人事考課', '前回', '前々回', '前々々回', '平均']
 
+category9 = ['前回', '前々回', '前々々回', '平均']
 
-# --ここでいろいろ分析する
-def data_analysis(spi_data):
-    # --データ分析クラス作成
 
-    # ########主成分分析############ #
+# ###### データのカウント ####### #
+def count_rate(spi_data):
+    # --データ取得
+    data = copy.deepcopy(spi_data)
+    data.replace_nan(["退職"], 0)
+    analysis_data = spi.DataAnalysis(data.df)
+    analysis_data.count_rate("性別", "result/count/性別ごとの退職率推移.png")
+
+
+# ###### 各特徴の平均の推移 ##### #
+def transition(spi_data):
+    # --データ取得
+    data = copy.deepcopy(spi_data)
+    data.replace_nan(["退職"], 0)
+    analysis_data = spi.DataAnalysis(data.df)
+    for column in data.df.columns:
+        # analysis_data.transition(column, "result/transition/男女別/{}.png".format(column))
+        analysis_data.transition(column, "result/transition/男女混合/{}.png".format(column))
+
+
+# ####### 主成分分析 ######### #
+def pca(spi_data):
     # --データ取得
     data = copy.deepcopy(spi_data)
     # --退職していない人は０
     data.replace_nan(["退職"], 0)
     # --考慮する列
     consider_columns = ["Ｗ創造重視"]
-    data.remove_nan(consider_columns)
+    # data.remove_nan(consider_columns)
     # --考慮しない列
     remove_columns = ["性別", "入行年", "前回", "前々回", "前々々回"]
     # data.remove_column(remove_columns)
     # --NaNを含む列は全て除去
     data.remove_all_nan()
     # --主成分分析を実行
-    analysis_data = spi.DataAnalysis(data.df)
-    #analysis_data.pca(1, 2)
-    #analysis_data.pca(1, 8)
-    #analysis_data.pca(1, 9)
-    #analysis_data.pca(1, 10)
-    #analysis_data.pca(1, 11)
+    if True:
+        # --何かでグループ化して個別に分析するとき
+        divide_column = ["入行年", "性別"]
+        for c in divide_column:
+            data.divide_df(c)
+        data_dict = copy.deepcopy(data.df_dict)
+        for name in data_dict:
+            print(name)
+            analysis_data = spi.DataAnalysis(data_dict[name])
+            #os.mkdir("result/pca/{}".format(str(name) + '_'.join(divide_column)))
+            analysis_data.pca(3, 4, str(name) + '_'.join(divide_column) + '/')
+    else:
+        # --グループ化しないとき
+        analysis_data = spi.DataAnalysis(data.df)
+        analysis_data.pca(1, 2, "総合/")
 
-    # #######機械学習########## #
+
+# ######## LightGBM ########## #
+def lightgbm(spi_data):
     # --データ取得
     data = copy.deepcopy(spi_data)
     # --退職していない人は０
     data.replace_nan(["退職"], 0)
     # --考慮する列
-    # consider_columns = ["Ｗ創造重視"]
+    consider_columns = ["Ｗ創造重視"]
     # data.remove_nan(consider_columns)
     # --考慮しない列
-    remove_columns = ["通番"]
+    remove_columns = ["通番"] + category8
     data.remove_column(remove_columns)
     # --年と性別をone-hot表現にする
     # data.add_one_hot()
-    # --NaNを含む列は全て除去
-    data.remove_all_nan()
     # --LightGBM
-    analysis_data = spi.DataAnalysis(data.df)
-    analysis_data.lightgbm("退職")
+    target = "退職"
+    if True:
+        # --何かでグループ化して個別に分析するとき
+        divide_column = ["入行年", "性別"]
+        for c in divide_column:
+            data.divide_df(c)
+        data_dict = copy.deepcopy(data.df_dict)
+        for name in data_dict:
+            print(name)
+            analysis_data = spi.DataAnalysis(data_dict[name])
+            #os.mkdir("result/tree/lightgbm/{}".format(str(name) + '_'.join(divide_column)))
+            analysis_data.lightgbm(target, str(name) + '_'.join(divide_column) + '/')
+    else:
+        # --グループ化しないとき
+        analysis_data = spi.DataAnalysis(data.df)
+        analysis_data.lightgbm(target, "総合/")
+
+
+# ######## 重回帰分析 ############# #
+def predict_score(spi_data):
+    # --データ取得
+    data = copy.deepcopy(spi_data)
+    # --退職していない人は０
+    # data.replace_nan(["退職"], 0)
+    # --考慮する列
+    consider_columns = ["Ｗ創造重視"]
+    # data.remove_nan(consider_columns)
+    # --考慮しない列
+    remove_columns = ["通番"] + category9
+    data.remove_column(remove_columns)
+    # --重回帰分析
+    data.remove_nan(["人事考課"])
+    target = "人事考課"
+    if True:
+        # --何かでグループ化して個別に分析するとき
+        divide_column = ["性別"]
+        for c in divide_column:
+            data.divide_df(c)
+        data_dict = copy.deepcopy(data.df_dict)
+        for name in data_dict:
+            print(name)
+            data_dict[name] = data_dict[name].dropna(how='any', axis=1)
+            analysis_data = spi.DataAnalysis(data_dict[name])
+            #os.mkdir("result/regression/{}".format(str(name) + '_'.join(divide_column)))
+            analysis_data.predict_score(target, str(name) + '_'.join(divide_column) + '/')
+    else:
+        # --グループ化しないとき
+        # --NaNを含む列は全て除去
+        data.remove_all_nan()
+        analysis_data = spi.DataAnalysis(data.df)
+        analysis_data.predict_score(target, "総合/")
+
+
+# --ここでいろいろ分析する やらないやつはコメントアウト
+def data_analysis(spi_data):
+    print("Analysis started.")
+    # ########カウント############# #
+    #count_rate(spi_data)
+
+    # ########推移############## #
+    #transition(spi_data)
+
+    # ########主成分分析############ #
+    #pca(spi_data)
+
+    # #######機械学習########## #
+    #lightgbm(spi_data)
+
+    # #######重回帰分析####### #
+    predict_score(spi_data)
 
 
 # --メイン関数

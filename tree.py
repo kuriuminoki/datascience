@@ -6,13 +6,17 @@ from load_save import save_data
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
-from sklearn.tree import export_graphviz
-import pydotplus
-from IPython.display import Image
-from matplotlib import pyplot as plt
+from sklearn.inspection import plot_partial_dependence
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 
-def lightgbm(df, ans_column):
+path = "result/tree/lightgbm/"
+
+
+def lightgbm(df, ans_column, dir_name):
     # --データを用意する
     y = df[ans_column]
     # --訓練データ
@@ -45,7 +49,7 @@ def lightgbm(df, ans_column):
         # --葉の最小データ数
         'min_data_in_leaf': 4,
         # --決定機の深さ
-        'max_depth': 8,
+        'max_depth': 16,
     }
 
     model = lgb.train(params, lgb_train, valid_sets=lgb_test,
@@ -54,15 +58,16 @@ def lightgbm(df, ans_column):
                       early_stopping_rounds=100
                       )
 
-    plot_lightgbm(model, train_x)
+    plot_lightgbm(model, dir_name)
 
     # テストデータを予測する
     pred_y = model.predict(test_x, num_iteration=model.best_iteration)
+    #print(pred_y)
 
     # AUC (Area Under the Curve) を計算する
     fpr, tpr, thresholds = metrics.roc_curve(test_y, pred_y)
     auc = metrics.auc(fpr, tpr)
-    print(auc)
+    #print(auc)
 
     # ROC曲線をプロット
     plt.plot(fpr, tpr, label='ROC curve (area = %.2f)' % auc)
@@ -71,24 +76,55 @@ def lightgbm(df, ans_column):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.grid(True)
-    plt.savefig("result/tree/lightgbm/ROC.png")
+    plt.savefig(path + "{}ROC.png".format(dir_name))
 
     # --特徴量の重要度出力
-    print(model.feature_importance())
-    # --特徴量の重要度をプロット
+    plt.figure(figsize=(16, 12))
+    importance = pd.DataFrame(model.feature_importance(), index=x.columns, columns=['importance'])
+    #print(importance)
     plt.rcParams['font.family'] = 'Hiragino sans'
-    lgb.plot_importance(model)
-    plt.savefig("result/tree/lightgbm/feature.png")
-    plt.show()
+    plt.barh(importance.index, importance["importance"])
+    plt.grid()
+    plt.savefig(path + "{}feature.png".format(dir_name))
+    #plt.show()
+    plt.clf()
+
+    # --PDP
+    for c in x.columns:
+        plot_pdp(model, x, c, dir_name)
 
 
-def plot_lightgbm(model, x):
-    #export_graphviz(model, out_file="tree.dot", feature_names=x.columns, class_names=["0", "1"], filled=True,
-     #               rounded=True)
+def plot_lightgbm(model, dir_name):
+    lgb.plot_tree(model, tree_index=model.best_iteration-1, figsize=(20, 20), show_info=['split_gain'])
+    plt.savefig(path + "{}tree.png".format(dir_name))
+    #plt.show()
+    plt.clf()
 
-    #graph = pydotplus.graph_from_dot_file(path="tree.dot")
-    #Image(graph.create_png())
-    ax = lgb.plot_tree(model, tree_index=0, figsize=(20, 20), show_info=['split_gain'])
-    plt.show()
-    graph = lgb.create_tree_digraph(model, tree_index=0, format='png', name='Tree')
-    graph.render(view=True)
+
+def plot_pdp(model, feature, target, dir_name):
+    # いくつかの行について、特定のカラムの値を入れかえながらモデルに予測させる
+    sampling_factor = 0.5
+    resolution = 10
+    min_, max_ = feature[target].quantile([0, 1])
+    candidate_values = np.linspace(min_, max_, resolution)
+    sampled_df = feature.sample(frac=sampling_factor)
+    y_preds = np.zeros((len(sampled_df), resolution))
+    for index, (_, target_row) in enumerate(sampled_df.iterrows()):
+        for trial, candidate_value in enumerate(candidate_values):
+            target_row[target] = candidate_value
+            y_preds[index][trial] = model.predict([target_row])
+
+    # 予測させた結果をプロットする
+    mean_y_preds = y_preds.mean(axis=0)  # 平均
+    sd_y_preds = y_preds.std(axis=0)  # 標準偏差
+    # 平均 ± 1 SD を折れ線グラフにする
+    plt.plot(candidate_values, mean_y_preds)
+    plt.fill_between(candidate_values,
+                     mean_y_preds - sd_y_preds,
+                     mean_y_preds + sd_y_preds,
+                     alpha=0.5)
+    plt.xlabel('factor')
+    plt.ylabel('target')
+    plt.savefig(path + "{}pdp_{}.png".format(dir_name, target))
+    #plt.show()
+    plt.clf()
