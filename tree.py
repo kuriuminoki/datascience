@@ -63,6 +63,11 @@ def lightgbm(df, ans_column, dir_name):
     # テストデータを予測する
     pred_y = model.predict(test_x, num_iteration=model.best_iteration)
     #print(pred_y)
+    ans_list = list(test_y.round())
+    pred_list = list(np.round(pred_y))
+    print(ans_list)
+    result = metrics.confusion_matrix(ans_list, pred_list)
+    print(result)
 
     # AUC (Area Under the Curve) を計算する
     fpr, tpr, thresholds = metrics.roc_curve(test_y, pred_y)
@@ -80,7 +85,7 @@ def lightgbm(df, ans_column, dir_name):
 
     # --特徴量の重要度出力
     plt.figure(figsize=(16, 12))
-    importance = pd.DataFrame(model.feature_importance(), index=x.columns, columns=['importance'])
+    importance = pd.DataFrame(model.feature_importance(importance_type="gain"), index=x.columns, columns=['importance'])
     #print(importance)
     plt.rcParams['font.family'] = 'Hiragino sans'
     plt.barh(importance.index, importance["importance"])

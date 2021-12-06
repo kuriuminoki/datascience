@@ -13,7 +13,9 @@ from sklearn.decomposition import PCA
 
 
 # --主成分分析を行う
-def pca_analysis(df, dir_name=""):
+def pca_analysis(df, focus, dir_name=""):
+    # --色分け基準の列を削除
+    df = df.drop(columns=focus)
     # --標準化 0列目はのぞく
     dfs = df.iloc[:, 1:].apply(lambda x: (x - x.mean()) / x.std(), axis=0)
     # dfs = df
@@ -68,6 +70,9 @@ def pca_analysis(df, dir_name=""):
 def pca_plot(df, feature, x, y, column_name, dir_name=""):
     plt.figure(figsize=(6, 6))
     plt.scatter(feature[:, x - 1], feature[:, y - 1], alpha=0.8, c=list(df[column_name]))
+    #plt.scatter(feature[:, x - 1], feature[:, y - 1], alpha=0.8, c=list(df[column_name]),
+                #cmap='Blues', vmin=80.0, vmax=30.0)
+    plt.colorbar()
     plt.grid()
     plt.xlabel("PC{}".format(x))
     plt.ylabel("PC{}".format(y))

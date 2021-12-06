@@ -1,11 +1,12 @@
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error
 import pandas as pd
 import matplotlib.pyplot as plt
 
 # ##### 重回帰分析による予測 ########## #
 
 
-path = "result/regression/"
+path = "result/regression/伸びしろ/"
 
 
 # --正規化
@@ -35,10 +36,18 @@ def predict_score(df, target_column, dir_name):
     plt.clf()
 
     # --実際に予測するとどうなったか
-    predict_y = model.predict(x_np)
+    y_pred = model.predict(x_np)
+    y_pred = list(y_pred)
+    y_np = list(y_np)
+    plt.scatter(y_np, y_np, c='red')
+    plt.scatter(y_np, y_pred, c='blue', alpha=0.5)
+    plt.grid()
+    plt.savefig(path + "{}{}_plot.png".format(dir_name, target_column))
+    plt.clf()
+    # --評価
     for feature in x_np.columns:
         plt.scatter(df[feature], y_np, marker='+', color="b", label="データ")
-        plt.scatter(df[feature], predict_y, color="r", label="予測値")
+        plt.scatter(df[feature], y_pred, color="r", label="予測値")
         plt.legend()
         plt.grid()
         plt.savefig(path + "{}{}_{}と予測結果.png".format(dir_name, target_column, feature))

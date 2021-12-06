@@ -4,6 +4,7 @@ from tree import lightgbm
 from regression import predict_score
 
 import copy
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -13,6 +14,8 @@ class SpiData(object):
     def __init__(self, path):
         # --DataFrame型のデータ
         self.df = load_dataset(path)
+        self.df["人事考課"] = self.df["人事考課"].astype('float64')
+        #print(self.df.dtypes)
         self.df_dict = None
 
     # --一つでもNaNがある列を削除
@@ -74,6 +77,36 @@ class SpiData(object):
             self.df_dict = dict()
             self.df_dict = copy.deepcopy(new_dict)
 
+    # --start から end 年までを抽出
+    def extract_year(self, start, end):
+        self.divide_df("入行年")
+        self.df = copy.deepcopy(self.df_dict[start])
+        for i in range(start + 1, end + 1):
+            self.df = pd.concat([self.df, self.df_dict[i]])
+
+    def add_growth(self, past):
+        self.remove_nan(["人事考課", past])
+        name = "人事考課-" + past
+        self.df[name] = self.df["人事考課"] - self.df[past]
+        return name
+
+    def plot_growth(self):
+        category = ['人事考課', '前回', '前々回', '前々々回']
+        self.divide_df("入行年")
+        for year in self.df_dict:
+            df = copy.deepcopy(self.df_dict[year].loc[:, category])
+            df = df.dropna(subset=['人事考課'])
+            df = df.dropna(how='any', axis=1)
+            print(df)
+            plt.figure(figsize=(16, 12))
+            plt.rcParams['font.family'] = 'Hiragino sans'
+            for i in range(len(df)):
+                value = df.iloc[i]
+                plt.plot(value)
+            plt.grid()
+            plt.savefig("result/伸びしろ推移/" + str(year) + ".png")
+            plt.clf()
+
 
 # --データを分析するクラス
 # --主成分分析とか、分類器の学習とか
@@ -83,8 +116,9 @@ class DataAnalysis(object):
 
     # --主成分分析
     def pca(self, x, y, dir_name=""):
-        dfs, feature = pca_analysis(self.df, dir_name)
-        pca_plot(self.df, feature, x, y, "退職", dir_name)
+        focus = "退職"
+        dfs, feature = pca_analysis(copy.deepcopy(self.df), focus, focus + "/" + dir_name)
+        pca_plot(self.df, feature, x, y, focus, focus + "/" + dir_name)
 
     # --LightGBM
     def lightgbm(self, ans_column, dir_name):
@@ -117,9 +151,9 @@ class DataAnalysis(object):
     # --特定の特徴の年推移
     def transition(self, column_name, path):
         plt.rcParams['font.family'] = 'Hiragino sans'
-        if False:
-            # --男女別
-            for sex, df in self.df.groupby("性別"):
+        if True:
+            # --男女別 or 退職別
+            for sex, df in self.df.groupby("退職"):
                 x = []
                 y = []
                 for year, group in df.groupby("入行年"):
@@ -136,7 +170,7 @@ class DataAnalysis(object):
             plt.plot(x, y)
         plt.legend()
         plt.grid()
-        plt.xlabel(column_name)
+        plt.ylabel(column_name)
         plt.savefig(path)
         #plt.show()
         plt.clf()
