@@ -26,7 +26,7 @@ def lightgbm(df, ans_column, dir_name):
     train_x, test_x, train_y, test_y = train_test_split(x, y,  # --訓練データとテストデータに分割する
                                                         test_size=0.3,  # --テストデータの割合
                                                         shuffle=True,  # --シャッフルする
-                                                        random_state=0)  # --乱数シードを固定する
+                                                        random_state=21)  # --乱数シードを固定する
     # --データセットを登録
     lgb_train = lgb.Dataset(train_x, train_y)
     lgb_test = lgb.Dataset(test_x, test_y, reference=lgb_train)
@@ -85,7 +85,8 @@ def lightgbm(df, ans_column, dir_name):
 
     # --特徴量の重要度出力
     plt.figure(figsize=(16, 12))
-    importance = pd.DataFrame(model.feature_importance(importance_type="gain"), index=x.columns, columns=['importance'])
+    importance = pd.DataFrame(model.feature_importance(importance_type="gain"), index=x.columns,
+                              columns=['importance']).sort_values(by="importance")
     #print(importance)
     plt.rcParams['font.family'] = 'Hiragino sans'
     plt.barh(importance.index, importance["importance"])

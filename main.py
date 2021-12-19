@@ -39,8 +39,9 @@ def count_rate(spi_data):
     # --データ取得
     data = copy.deepcopy(spi_data)
     data.replace_nan(["退職"], 0)
+    data.replace_nan(["3年以内退職率"], 0)
     analysis_data = spi.DataAnalysis(data.df)
-    analysis_data.count_rate("性別", "result/count/性別ごとの退職率推移.png")
+    analysis_data.count_rate("性別", "result/count/性別ごとの3年以内退職率の平均推移.png")
 
 
 # ###### 各特徴の平均の推移 ##### #
@@ -96,36 +97,40 @@ def pca(spi_data):
 def lightgbm(spi_data):
     # --データ取得
     data = copy.deepcopy(spi_data)
+    # --女除外
+    #data.remove_woman()
     # --退職していない人は０
     data.replace_nan(["退職"], 0)
-    # --考慮する列
-    consider_columns = ["Ｗ創造重視"]
-    # data.remove_nan(consider_columns)
+    data.replace_nan(["3年以内退職"], 0)
     # --考慮しない列
-    remove_columns = ["通番"] + category8
+    #remove_columns = ["通番", "退職日", "3年以内退職"] + category8
+    remove_columns = ["通番", "退職日", "退職"] + category8
     data.remove_column(remove_columns)
+    # --退職者に関して、すぐに辞めた人だけに絞る
+    #data.remove_retire(False)
     # --一部の年のみ抽出
-    data.extract_year(2017, 2020)
+    #data.extract_year(2017, 2020)
     # --年と性別をone-hot表現にする
     # data.add_one_hot()
     # --LightGBM
-    target = "退職"
+    #target = "退職"
+    target = "3年以内退職"
     if False:
         # --何かでグループ化して個別に分析するとき
-        divide_column = ["入行年", "性別"]
+        divide_column = ["勤務年"]
         for c in divide_column:
             data.divide_df(c)
         data_dict = copy.deepcopy(data.df_dict)
         for name in data_dict:
             print(name)
             analysis_data = spi.DataAnalysis(data_dict[name])
-            #os.mkdir("result/tree/lightgbm/{}".format(str(name) + '_'.join(divide_column)))
+            os.mkdir("result/tree/lightgbm/{}".format(str(name) + '_'.join(divide_column)))
             analysis_data.lightgbm(target, str(name) + '_'.join(divide_column) + '/')
     else:
         # --グループ化しないとき
         analysis_data = spi.DataAnalysis(data.df)
-        # analysis_data.lightgbm(target, "総合/")
-        analysis_data.lightgbm(target, "2017-2020/")
+        analysis_data.lightgbm(target, "総合3年以内/")
+        #analysis_data.lightgbm(target, "世代男/2017-2020/")
 
 
 # ######## 重回帰分析 ############# #
@@ -172,7 +177,7 @@ def predict_score(spi_data):
 def data_analysis(spi_data):
     print("Analysis started.")
     # ########カウント############# #
-    #count_rate(spi_data)
+    count_rate(spi_data)
 
     # ########推移############## #
     #transition(spi_data)
@@ -186,14 +191,18 @@ def data_analysis(spi_data):
     # #######重回帰分析####### #
     #predict_score(spi_data)
 
-    spi_data.plot_growth()
+    #spi_data.plot_growth()
 
 
 # --メイン関数
 def main():
     # --データのロード
-    path = "data/spiデータ.csv"
+    path = "data/20211210spi.csv"
+    #path = "data/spiデータ.csv"
     spi_data = spi.SpiData(path)
+
+    # --退職していない人を外す場合
+    #spi_data.remove_nan("退職")
 
     # --いろいろ分析する
     data_analysis(spi_data)

@@ -64,7 +64,7 @@ class SpiData(object):
             self.df_dict = dict()
             for name, group in self.df.groupby(column_name):
                 self.df_dict[name] = copy.deepcopy(group)
-                self.df_dict[name] = self.df_dict[name].drop(columns=[column_name])
+                #self.df_dict[name] = self.df_dict[name].drop(columns=[column_name])
         else:
             #print(column_name)
             new_dict = dict()
@@ -72,8 +72,8 @@ class SpiData(object):
                 df = copy.deepcopy(self.df_dict[key])
                 for name, group in df.groupby(column_name):
                     new_dict[str(key) + '_' + str(name)] = copy.deepcopy(group)
-                    new_dict[str(key) + '_' + str(name)] = \
-                        new_dict[str(key) + '_' + str(name)].drop(columns=[column_name])
+                    #new_dict[str(key) + '_' + str(name)] = \
+                        #new_dict[str(key) + '_' + str(name)].drop(columns=[column_name])
             self.df_dict = dict()
             self.df_dict = copy.deepcopy(new_dict)
 
@@ -107,6 +107,41 @@ class SpiData(object):
             plt.savefig("result/伸びしろ推移/" + str(year) + ".png")
             plt.clf()
 
+    # --fast==True->３年以内に辞めた人のみ残す、False->３年以内に辞めた人以外を残す
+    def remove_retire(self, fast=True):
+        cnt1 = 0
+        cnt2 = 0
+        self.replace_nan(["退職", "3年以内退職"], 0)
+        for i in range(len(self.df["退職"])):
+            if self.df["退職"][i] == 1:
+                if self.df["3年以内退職"][i] == 0 and fast is True:
+                    self.df = self.df.drop(i)
+                    cnt1 += 1
+                elif self.df["3年以内退職"][i] == 1 and fast is False:
+                    self.df = self.df.drop(i)
+                    cnt1 += 1
+                else:
+                    cnt2 += 1
+        print("{} : {}".format(cnt1, cnt2))
+        self.remove_column(["3年以内退職"])
+
+    def add_span(self):
+        self.df["勤務年"] = self.df["退職年"] - self.df["入行年"]
+
+    def remove_woman(self):
+        self.df = self.df[self.df["性別"] == 1]
+
+    def test(self):
+        for i in range(len(self.df["退職"])):
+            if self.df.isnull()["退職日"][i]:
+                continue
+            add = 0
+            print(self.df["退職日"][i])
+            if int(self.df["退職日"][i][5]) in [1, 2, 3]:
+                add = 1
+            self.df["退職日"][i] = int(self.df["退職日"][i][0:3]) + add
+        self.df.to_csv("data/spi2.csv", index=False)
+
 
 # --データを分析するクラス
 # --主成分分析とか、分類器の学習とか
@@ -131,20 +166,21 @@ class DataAnalysis(object):
         for name, group in self.df.groupby(column_name):
             df_dict[name] = group
 
+        plt.ylim(0, 0.7)
         for column in df_dict:
             x = []
             y = []
             for year, group in df_dict[column].groupby("入行年"):
                 x.append(year)
-                #cnt = (group["退職"] == 1).sum()
-                # y.append(cnt / len(group))
-                cnt = group["人事考課"].mean()
-                y.append(cnt)
+                cnt = (group["3年以内退職"] == 1).sum()
+                y.append(cnt / len(group))
+                #cnt = group["人事考課"].mean()
+                #y.append(cnt)
             plt.plot(x, y, label=column)
         plt.legend()
         plt.grid()
         #plt.savefig(path)
-        plt.savefig("result/count/性別ごとの人事考課の平均推移")
+        plt.savefig(path)
         plt.show()
         plt.clf()
 
